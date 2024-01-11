@@ -1,0 +1,8 @@
+{
+  "name": "pure-html-journal",
+  "scripts": {
+    "start": "cd src && deno run --allow-env --allow-net --allow-run --allow-read --watch main.ts"
+  },
+  "private": true,
+  "type": "module"
+}

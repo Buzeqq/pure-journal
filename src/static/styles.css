@@ -1,0 +1,31 @@
+html {
+  color-scheme: dark light;
+  background-color: rebeccapurple;
+  scroll-timeline: --page-scroll block;
+}
+
+body {
+  /*min-height: 100svh;*/
+}
+
+.bottom {
+  position: fixed;
+  z-index: 10;
+  left: 0;
+  top: 0;
+  background-color: red;
+  transform-origin: 0 100svh;
+  opacity: 0;
+
+  animation: scroll-to-bottom-reveal auto steps(1, end);
+  animation-timeline: --page-scroll;
+}
+
+@keyframes scroll-to-bottom-reveal {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
