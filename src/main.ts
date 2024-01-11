@@ -12,7 +12,7 @@ app.get('/', (c) => {
 
   return stream(c, async (stream) => {
     const { stdout: journalStdout } = new Deno.Command('journalctl', {
-      args: ['-o', 'json', '-fn', '1', '-u', 'web-api-test'],
+      args: ['-o', 'json', '-fn', '1', '-u', 'web-api-pure-journal'],
       stdout: 'piped'
     }).spawn();
 
