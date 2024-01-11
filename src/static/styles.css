@@ -4,10 +4,6 @@ html {
   scroll-timeline: --page-scroll block;
 }
 
-body {
-  /*min-height: 100svh;*/
-}
-
 .bottom {
   position: fixed;
   z-index: 10;
