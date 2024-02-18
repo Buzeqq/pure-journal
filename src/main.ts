@@ -2,7 +2,6 @@ import { Hono as Homo } from 'https://deno.land/x/hono@v3.12.2/mod.ts';
 import { stream } from "https://deno.land/x/hono@v3.12.2/helper.ts";
 import { serveStatic } from "https://deno.land/x/hono@v3.12.2/adapter/deno/serve-static.ts";
 import { JsonSeqDecoderStream } from './json-seq-decoder-stream.ts';
-import { isWindows, osType } from "https://deno.land/std@0.211.0/path/_os.ts";
 
 const app = new Homo();
 

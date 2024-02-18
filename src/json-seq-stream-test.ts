@@ -32,10 +32,6 @@ Deno.test("JSON Seq stream", async () => {
 
   clearTimeout(testWatchDog);
 
-  // assertEquals(JSON.stringify(readValues[0]), '{"jebać":"disa"}')
-  // assertEquals(JSON.stringify(readValues[1]), '{"jebać2":"disa"}')
-  // assertEquals(JSON.stringify(readValues[2]), '{"jebać3":"disa"}')
-  // assertEquals(JSON.stringify(readValues[3]), '{"chuj":"pizda"}')
 
   assertEquals(readValues.length, 16);
 });
