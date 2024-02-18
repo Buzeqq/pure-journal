@@ -1,6 +1,8 @@
 import { Hono as Homo } from 'https://deno.land/x/hono@v3.12.2/mod.ts';
 import { stream } from "https://deno.land/x/hono@v3.12.2/helper.ts";
 import { serveStatic } from "https://deno.land/x/hono@v3.12.2/adapter/deno/serve-static.ts";
+import { JsonSeqDecoderStream } from './json-seq-decoder-stream.ts';
+import { isWindows, osType } from "https://deno.land/std@0.211.0/path/_os.ts";
 
 const app = new Homo();
 
@@ -11,18 +13,15 @@ app.get('/', (c) => {
   headers.set('Cache-Control', 'no-cache');
 
   return stream(c, async (stream) => {
-    const { stdout: journalStdout } = new Deno.Command('journalctl', {
-      args: ['-o', 'json', '-fn', '1', '-u', 'web-api-pure-journal'],
+    const { stdout } = new Deno.Command('journalctl', {
+      args: ['-o', 'json-seq', '-f', '-u', 'web-api-test'],
       stdout: 'piped'
     }).spawn();
 
-    const { stdout: jqStdout, stdin: jqStdin } = new Deno.Command('jq',
-      {
-        args: ['--unbuffered', '-r', 'select(.MESSAGE != null) | .MESSAGE + "|new-line-here|"'],
-        stdin: 'piped',
-        stdout: 'piped'
-      }).spawn();
-    void journalStdout.pipeTo(jqStdin);
+    const { stdout: stdout2 } = new Deno.Command('journalctl', {
+      args: ['-o', 'json-seq', '-f', '-u', 'web-api-test'],
+      stdout: 'piped'
+    }).spawn();
 
     await stream.write('<!DOCTYPE html>');
     await stream.write('<html lang="en">');
@@ -33,20 +32,25 @@ app.get('/', (c) => {
       '</head>');
 
     await stream.write('<a href="javascript:window.scrollTo(0, document.body.scrollHeight)" class="bottom">Back to Bottom &DownArrow;</a>');
-    await stream.write('<table>');
+    // await stream.write('<pre>');
 
-    const journal = jqStdout
-      .pipeThrough(new TextDecoderStream());
+    const xd = stdout2.pipeThrough(new TextDecoderStream());
+
+    let chuj = 0;
+    for await (const part of xd) {
+      await stream.write(`<pre>${part.replaceAll(String.fromCharCode(30), '<==[KuRwA(PREFIX)]==>')
+        .replaceAll(String.fromCharCode(10), '<==[KuRwA(SUFFIX)]==>')}</pre>`);
+
+      if (chuj++ == 10) await stream.close();
+    }
+
+
+    const journal = stdout.pipeThrough(new TextDecoderStream())
+      .pipeThrough(new JsonSeqDecoderStream());
 
     for await (const journalLine of journal) {
-      try {
-        for (const x of journalLine.split('|new-line-here|')) {
-          const parsed = JSON.parse(x);
-          const values = Object.entries(parsed).map(([, value]) => `<td>${value}</td>`).join(' ');
-          await stream.write(`<tr>${values}</tr>`);
-        }
-
-      } catch (e) { /* empty */ }
+      const values = Object.entries(journalLine).map(([, value]) => `<td>${value}</td>`).join(' ');
+      await stream.write(`<tr>${values}</tr>`);
     }
 
     await stream.write('</table>');
