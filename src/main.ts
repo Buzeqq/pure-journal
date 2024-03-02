@@ -17,11 +17,6 @@ app.get('/', (c) => {
       stdout: 'piped'
     }).spawn();
 
-    const { stdout: stdout2 } = new Deno.Command('journalctl', {
-      args: ['-o', 'json-seq', '-f', '-u', 'web-api-test'],
-      stdout: 'piped'
-    }).spawn();
-
     await stream.write('<!DOCTYPE html>');
     await stream.write('<html lang="en">');
     await stream.write('<head>' +
@@ -31,18 +26,6 @@ app.get('/', (c) => {
       '</head>');
 
     await stream.write('<a href="javascript:window.scrollTo(0, document.body.scrollHeight)" class="bottom">Back to Bottom &DownArrow;</a>');
-    // await stream.write('<pre>');
-
-    const xd = stdout2.pipeThrough(new TextDecoderStream());
-
-    let chuj = 0;
-    for await (const part of xd) {
-      await stream.write(`<pre>${part.replaceAll(String.fromCharCode(30), '<==[KuRwA(PREFIX)]==>')
-        .replaceAll(String.fromCharCode(10), '<==[KuRwA(SUFFIX)]==>')}</pre>`);
-
-      if (chuj++ == 10) await stream.close();
-    }
-
 
     const journal = stdout.pipeThrough(new TextDecoderStream())
       .pipeThrough(new JsonSeqDecoderStream());
