@@ -1,16 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Honk&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
 html {
   color-scheme: dark light;
   scroll-timeline: --page-scroll block;
 }
 
+body {
+  padding: 0;
+  margin: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+:root {
+  --bg-odd: #d7d7d7;
+  --bg-header: #0EFF0C;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-odd: #1f1f1f;
+    --bg-header: #2d5e2c;
+  }
+}
+
 .bottom {
   position: fixed;
   z-index: 10;
-  left: 0;
-  top: 0;
-  background-color: red;
-  transform-origin: 0 100svh;
+  left: 30px;
+  bottom: 30px;
+  width: 50px;
+  height: 50px;
   opacity: 0;
+  border-radius: 50%;
+  text-decoration: none;
+
+  display: grid;
+  place-items: baseline center;
+
+  font-size: 4ch;
+  font-weight: bold;
+
+  background-color: var(--bg-header);
+  color: black;
+  border: 1px solid black;
 
   animation: scroll-to-bottom-reveal auto steps(1, end);
   animation-timeline: --page-scroll;
@@ -26,7 +60,26 @@ html {
 }
 
 table {
-  > tr:nth-of-type(2n) {
-    background-color: #00000010;
+  width: 100%;
+  > tbody {
+    > tr {
+      > td {
+        vertical-align: top;
+        padding: 0.5em;
+      }
+    }
+
+    > tr:first-child {
+      top: 0;
+      position: sticky;
+      background-color: var(--bg-header);
+      > td {
+        padding: 0.5em;
+      }
+    }
+
+    > tr:nth-of-type(2n) {
+      background-color: var(--bg-odd);
+    }
   }
 }

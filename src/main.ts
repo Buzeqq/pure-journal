@@ -1,8 +1,13 @@
 import { JsonSeqDecoderStream } from './json-seq-decoder-stream.ts';
 
-async function logic(controller: ReadableStreamDefaultController<string>, signal: AbortSignal) {
+async function logic(controller: ReadableStreamDefaultController<string>, params: URLSearchParams, signal: AbortSignal) {
+  const fields = params.get('fields')?.split(',') ?? [];
+  const args = ['-o', 'json-seq', '-f', '-u', 'web-api-test'];
+  if (fields.length) {
+    args.push('--output-fields', fields.join(','));
+  }
   const { stdout } = new Deno.Command('journalctl', {
-    args: ['-o', 'json-seq', '-f', '-u', 'web-api-test'],
+    args,
     stdout: 'piped',
     signal
   }).spawn();
@@ -15,26 +20,36 @@ async function logic(controller: ReadableStreamDefaultController<string>, signal
     '<script async type="module" src="static/main.js"></script>' +
     '</head>');
 
-  controller.enqueue('<a href="javascript:window.scrollTo(0, document.body.scrollHeight)" class="bottom">Back to Bottom &DownArrow;</a>');
+  controller.enqueue('<a href="javascript:window.scrollTo(0, document.body.scrollHeight)" class="bottom">&DownArrow;</a>');
 
   const journal = stdout.pipeThrough(new TextDecoderStream())
     .pipeThrough(new JsonSeqDecoderStream());
 
   controller.enqueue('<table>');
 
+  const collator = Intl.Collator();
   let headSent = false;
   for await (const journalLine of journal) {
     if (signal.aborted) return;
+    const processLine = (columns: string[]) => {
+      console.log(params.get('fields'), fields);
+      if (fields.length) {
+        return columns.filter(x => fields.includes(x));
+      }
+      return columns.sort( ([a], [b]) => collator.compare(b, a));
+    }
+    const createRow = (values: string[], type: 'th' | 'td' = 'td') => values.map(v => `<${type}>${v}</${type}>`).join('');
+    const filteredKeys = processLine(Object.keys(journalLine));
+
     if (!headSent) {
       headSent = true;
-
-      const ths = Object.keys(journalLine).sort().map(x => `<th>${x}</th>`).join('');
+      const ths = createRow(filteredKeys, 'th');
       controller.enqueue(`<tr>${ths}</tr>`);
     }
 
-    const collator = Intl.Collator();
-
-    const tds = Object.entries(journalLine).sort(([a], [b]) => collator.compare(b, a)).map(([, value]) => `<td>${value}</td>`).join('');
+    const tds = fields.length
+      ? createRow(fields.map(x => journalLine[x]))
+      : createRow(Object.values(journalLine));
     controller.enqueue(`<tr>${tds}</tr>`);
   }
 
@@ -59,9 +74,9 @@ async function serveStatic(pathname: string): Promise<Response> {
 }
 
 function serveLogStream(request: Request): Response {
-
+  const params = new URL(request.url);
   const stream = new ReadableStream<string>({
-    start: (controller) => logic(controller, request.signal)
+    start: (controller) => logic(controller, params.searchParams, request.signal)
   });
 
   const utf8Stream = stream.pipeThrough(new TextEncoderStream());
