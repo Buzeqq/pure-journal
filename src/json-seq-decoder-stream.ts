@@ -2,7 +2,7 @@ const asciiRecordSeparatorCharacter = String.fromCharCode(30);
 const newLineCharacter = String.fromCharCode(10);
 
 class JsonSeqTransformer<T> implements Transformer<string, T> {
-  private internalBuffer: string = '';
+  private internalBuffer = '';
 
   public transform(chunk: string, controller: TransformStreamDefaultController<T>) {
     this.internalBuffer += chunk;
@@ -13,7 +13,7 @@ class JsonSeqTransformer<T> implements Transformer<string, T> {
       startIndex = this.internalBuffer.indexOf(asciiRecordSeparatorCharacter);
       stopIndex = this.internalBuffer.indexOf(newLineCharacter);
 
-      if (startIndex !== -1 && stopIndex !== -1) break; /// #abcde%#abcaaa%aaa#, %#aa, %
+      if (startIndex === -1 || stopIndex === -1) break;
 
       const payload = this.internalBuffer.substring(startIndex + 1, stopIndex);
 

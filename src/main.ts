@@ -1,45 +1,86 @@
-import { Hono as Homo } from 'https://deno.land/x/hono@v3.12.2/mod.ts';
-import { stream } from "https://deno.land/x/hono@v3.12.2/helper.ts";
-import { serveStatic } from "https://deno.land/x/hono@v3.12.2/adapter/deno/serve-static.ts";
 import { JsonSeqDecoderStream } from './json-seq-decoder-stream.ts';
 
-const app = new Homo();
+async function logic(controller: ReadableStreamDefaultController<string>, signal: AbortSignal) {
+  const { stdout } = new Deno.Command('journalctl', {
+    args: ['-o', 'json-seq', '-f', '-u', 'web-api-test'],
+    stdout: 'piped',
+    signal
+  }).spawn();
 
-app.use('/static/*', serveStatic({ root: './' }));
-app.get('/', (c) => {
-  const { res: { headers }} = c
-  headers.set('Content-Type', 'text/html;charset=UTF-8');
-  headers.set('Cache-Control', 'no-cache');
+  controller.enqueue('<!DOCTYPE html>');
+  controller.enqueue('<html lang="en">');
+  controller.enqueue('<head>' +
+    '<title>Pure HTML Journal</title>' +
+    '<link rel="stylesheet" href="static/styles.css">' +
+    '<script async type="module" src="static/main.js"></script>' +
+    '</head>');
 
-  return stream(c, async (stream) => {
-    const { stdout } = new Deno.Command('journalctl', {
-      args: ['-o', 'json-seq', '-f', '-u', 'web-api-test'],
-      stdout: 'piped'
-    }).spawn();
+  controller.enqueue('<a href="javascript:window.scrollTo(0, document.body.scrollHeight)" class="bottom">Back to Bottom &DownArrow;</a>');
 
-    await stream.write('<!DOCTYPE html>');
-    await stream.write('<html lang="en">');
-    await stream.write('<head>' +
-      '<title>Pure HTML Journal</title>' +
-      '<link rel="stylesheet" href="static/styles.css">' +
-      '<script async type="module" src="static/main.js"></script>' +
-      '</head>');
+  const journal = stdout.pipeThrough(new TextDecoderStream())
+    .pipeThrough(new JsonSeqDecoderStream());
 
-    await stream.write('<a href="javascript:window.scrollTo(0, document.body.scrollHeight)" class="bottom">Back to Bottom &DownArrow;</a>');
+  controller.enqueue('<table>');
 
-    const journal = stdout.pipeThrough(new TextDecoderStream())
-      .pipeThrough(new JsonSeqDecoderStream());
+  let headSent = false;
+  for await (const journalLine of journal) {
+    if (signal.aborted) return;
+    if (!headSent) {
+      headSent = true;
 
-    for await (const journalLine of journal) {
-      const values = Object.entries(journalLine).map(([, value]) => `<td>${value}</td>`).join(' ');
-      await stream.write(`<tr>${values}</tr>`);
+      const ths = Object.keys(journalLine).sort().map(x => `<th>${x}</th>`).join('');
+      controller.enqueue(`<tr>${ths}</tr>`);
     }
 
-    await stream.write('</table>');
-    await stream.write('</html>');
+    const collator = Intl.Collator();
 
-    await stream.close();
+    const tds = Object.entries(journalLine).sort(([a], [b]) => collator.compare(b, a)).map(([, value]) => `<td>${value}</td>`).join('');
+    controller.enqueue(`<tr>${tds}</tr>`);
+  }
+
+  controller.enqueue('</table>');
+  controller.enqueue('</html>');
+}
+
+async function serveStatic(pathname: string): Promise<Response> {
+  try {
+    const {readable} = await Deno.open('.' + pathname);
+
+    return new Response(readable, {
+      headers: {
+        'content-type': pathname.includes('js') ? 'text/javascript' : 'text/css',
+      }
+    })
+  } catch {
+    return new Response(undefined, {
+      status: 404,
+    });
+  }
+}
+
+function serveLogStream(request: Request): Response {
+
+  const stream = new ReadableStream<string>({
+    start: (controller) => logic(controller, request.signal)
   });
-});
 
-Deno.serve(app.fetch);
+  const utf8Stream = stream.pipeThrough(new TextEncoderStream());
+
+  return new Response(utf8Stream, {
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-cache',
+      'transfer-encoding': 'chunked',
+    }
+  });
+}
+
+async function app(request: Request): Promise<Response> {
+  const { pathname } = new URL(request.url);
+
+  return pathname.includes('static')
+    ? await serveStatic(pathname)
+    : serveLogStream(request);
+}
+
+Deno.serve(app);

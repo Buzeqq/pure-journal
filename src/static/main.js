@@ -1,6 +1,6 @@
 let scrollToBottomEnabled = true;
 const scrollToBottom = () => {
-  scrollToBottomEnabled && window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottomEnabled && window.scrollTo(window.scrollX, document.body.scrollHeight);
   requestAnimationFrame(scrollToBottom);
 };
 scrollToBottom();

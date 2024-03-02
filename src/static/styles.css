@@ -1,6 +1,5 @@
 html {
   color-scheme: dark light;
-  background-color: rebeccapurple;
   scroll-timeline: --page-scroll block;
 }
 
@@ -23,5 +22,11 @@ html {
   }
   to {
     opacity: 0;
+  }
+}
+
+table {
+  > tr:nth-of-type(2n) {
+    background-color: #00000010;
   }
 }
